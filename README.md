@@ -10,6 +10,10 @@
 ```
 npm install
 ```
+## DB setup
+```
+mongorestore --db vending_machine dump/vending_machine
+```
 
 ## Start server
 ```
