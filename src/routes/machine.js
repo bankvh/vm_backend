@@ -1,6 +1,6 @@
 import {Router} from 'express'
 import { db, MACHINES } from '../config/db'
-import { sendEventToAllSubscriber } from './event'
+import { checkCurrentStock, sendEventToAllSubscriber } from './event'
 
 const router = Router()
 
@@ -15,6 +15,7 @@ router.post('/:machineId/checkout', async (req, res, next) => {
     }
 
     const stock = machine.products
+    const notifyStock = {}
 
     for (const [key, value] of Object.entries(reqBody)) {
         const newStock = stock[key]-value
@@ -24,19 +25,14 @@ router.post('/:machineId/checkout', async (req, res, next) => {
             return res.status(400).send(`Product ID: ${key} is not in machine`)
         } else {
             stock[key] = newStock
+            notifyStock[key] = newStock
         }
     }
     
     const updatedMachine = await db.collection(MACHINES).updateOne({id: Number(machineId)},{$set: {products: stock}})
 
     if (updatedMachine.result.nModified === 1){
-
-        for (const [key, value] of Object.entries(stock)) {
-            if (value<10){
-                sendEventToAllSubscriber(`Product ID: ${key} stock is ${value}`)
-            }
-        }
-
+        checkCurrentStock(machineId, notifyStock)
         return res.send('success')
     } else {
         return res.status(400).send('Order fail')
